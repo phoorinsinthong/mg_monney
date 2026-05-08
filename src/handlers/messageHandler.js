@@ -1,10 +1,12 @@
-// Message handler – only handles pension/เบี้ยหวัด queries (Thai)
+// Message handler – handles pension/เบี้ยหวัด queries and calculations (Thai)
 
 const PensionService = require('../services/pensionService');
 const PensionGeminiService = require('../services/pensionGeminiService');
+const PensionCalcService = require('../services/pensionCalcService');
 const { buildPensionFlex } = require('../messages/flexPension');
 
 const pensionService = new PensionService();
+const pensionCalcService = new PensionCalcService();
 
 // Simple response utilities
 const GENERAL_RESPONSES = {
@@ -24,10 +26,22 @@ function isHelpRequest(msg) {
   return helpWords.some(w => msg.toLowerCase().includes(w));
 }
 
+// Detect if query is a calculation request
+function isCalculationQuery(msg) {
+  const lower = msg.toLowerCase();
+  const calcKeywords = ['คำนวณ', 'คำนวน', 'เกษียณ', 'อายุราชการ', 'บำนาญ', 'เงินบำนาญ'];
+  return calcKeywords.some(k => lower.includes(k));
+}
+
 async function handleTextMessage(userId, userMessage) {
   // Greeting / help
   if (isGreeting(userMessage)) return GENERAL_RESPONSES.greeting;
   if (isHelpRequest(userMessage)) return GENERAL_RESPONSES.help;
+
+  // Check if it's a calculation query
+  if (isCalculationQuery(userMessage)) {
+    return handleCalculationQuery(userMessage);
+  }
 
   // Pension / เบี้ยหวัด query detection
   if (userMessage.toLowerCase().includes('เบี้ยหวัด') || userMessage.toLowerCase().includes('บำนาญ')) {
@@ -52,6 +66,69 @@ async function handlePensionQuery(query) {
     console.error('Gemini fallback error:', e);
     return GENERAL_RESPONSES.error;
   }
+}
+
+async function handleCalculationQuery(query) {
+  // Try to parse for retirement age calculation
+  const retirementResult = parseRetirementCalculation(query);
+  if (retirementResult) {
+    return retirementResult;
+  }
+  // Try to parse for pension amount calculation
+  const pensionResult = parsePensionCalculation(query);
+  if (pensionResult) {
+    return pensionResult;
+  }
+  // If we detected calculation intent but couldn't parse, fallback to Gemini AI
+  try {
+    const answer = await PensionGeminiService.answer(query);
+    return answer;
+  } catch (e) {
+    console.error('Gemini fallback error in calculation:', e);
+    return GENERAL_RESPONSES.error;
+  }
+}
+
+function parseRetirementCalculation(query) {
+  // Look for date patterns: YYYY-MM-DD or DD/MM/YYYY
+  const dateMatch = query.match(/(\d{4}-\d{2}-\d{2})|(\d{2}\/\d{2}\/\d{4})/);
+  if (!dateMatch) return null;
+  let dateStr = dateMatch[0];
+  // Normalize to YYYY-MM-DD for the service
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  const result = pensionCalcService.calculateRetirementAge(dateStr);
+  if (!result) return null;
+  // Return as a simple text message (could be Flex but keep simple for now)
+  return result.message;
+}
+
+function parsePensionCalculation(query) {
+  // Extract two numbers: final salary and years of service
+  // Look for patterns like "เงินเดือน 30000" หรือ "ทำงาน 30 ปี"
+  const salaryMatch = query.match(/เงินเดือน\s*(\d+(?:,\d{3})*(?:\.\d+)?)/);
+  const yearsMatch = query.match(/(\d+(?:\.\d+)?)\s*ปี/);
+  let finalSalary = null;
+  let yearsOfService = null;
+  if (salaryMatch) {
+    finalSalary = parseFloat(salaryMatch[1].replace(/,/g, ''));
+  }
+  if (yearsMatch) {
+    yearsOfService = parseFloat(yearsMatch[1]);
+  }
+  // Also look for alternative patterns like "ทำงาน 30 ปี" or "ทำงานมา 30 ปี"
+  if (!yearsOfService) {
+    const yearsMatch2 = query.match(/(?:ทำงาน|ทำงานมา|ระยะเวลาทำงาน)\s*(\d+(?:\.\d+)?)\s*ปี/);
+    if (yearsMatch2) {
+      yearsOfService = parseFloat(yearsMatch2[1]);
+    }
+  }
+  if (finalSalary === null || yearsOfService === null) return null;
+  const result = pensionCalcService.calculatePension(finalSalary, yearsOfService);
+  if (!result) return null;
+  return result.message;
 }
 
 module.exports = {
