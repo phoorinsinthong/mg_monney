@@ -12,8 +12,8 @@ const pensionCalcService = new PensionCalcService();
 const GENERAL_RESPONSES = {
   greeting: 'สวัสดีครับ/ค่ะ! มีอะไรให้ช่วยเกี่ยวกับเบี้ยหวัดหรือบำนาญได้บ้างครับ/คะ?',
   help: 'ส่งคำถามเกี่ยวกับเบี้ยหวัดหรือบำนาญมาได้เลย เช่น "สิทธิบำนาญคืออะไร" หรือ "เบี้ยหวัดต้องทำอย่างไร"',
-  error: 'ขออภัยค่ะ เกิดข้อผิดพลาดบางอย่าง ลองใหม่อีกครั้งนะคะ',
-  noData: 'ไม่พบข้อมูลที่ต้องการครับ/ค่ะ',
+  error: 'ขออภัยค่ะ',
+  noData: 'ขออภัยค่ะ',
 };
 
 function isGreeting(msg) {
@@ -26,14 +26,23 @@ function isHelpRequest(msg) {
   return helpWords.some(w => msg.toLowerCase().includes(w));
 }
 
-// Detect if query is a calculation request
+// Detect if query is a calculation request (retirement or pension)
 function isCalculationQuery(msg) {
   const lower = msg.toLowerCase();
   const calcKeywords = ['คำนวณ', 'คำนวน', 'เกษียณ', 'อายุราชการ', 'บำนาญ', 'เงินบำนาญ', 'อายุเท่าไหร่จะเกษียณ', 'จะได้บำนาญเท่าไหร่', 'คำนวณบำนาญ'];
   return calcKeywords.some(k => lower.includes(k));
 }
+// Detect service years queries (e.g., "อายุราชการ 18 ก.ย. 2561")
+function isServiceYearsQuery(msg) {
+  const lower = msg.toLowerCase();
+  return lower.includes('อายุราชการ') && /\d{1,2}\s*[กจ\/\.]*\s*\d{4}/.test(lower);
+}
 
 async function handleTextMessage(userId, userMessage) {
+  // Service years query detection (e.g., "อายุราชการ 18 ก.ย. 2561")
+  if (isServiceYearsQuery(userMessage)) {
+    return handleServiceYearsQuery(userMessage);
+  }
   // Greeting / help
   if (isGreeting(userMessage)) return GENERAL_RESPONSES.greeting;
   if (isHelpRequest(userMessage)) return GENERAL_RESPONSES.help;
@@ -60,20 +69,8 @@ async function handlePensionQuery(query) {
     return buildPensionFlex(kbResult); // Flex Message object
   }
 
-  // If low-confidence match, use as context for Gemini
-  let context = '';
-  if (kbResult) {
-    context = `\n\nข้อมูลเพิ่มเติมจากฐานความรู้: ${kbResult.answer} (แหล่งที่มา: ${kbResult.source_url || 'ไม่ระบุ'})`;
-  }
-
-  // Fallback to Gemini AI with optional context
-  try {
-    const answer = await PensionGeminiService.answer(query + context);
-    return buildAnswerFlex(answer);
-  } catch (e) {
-    console.error('Gemini fallback error:', e);
-    return GENERAL_RESPONSES.error;
-  }
+  // No good match: return apology
+  return GENERAL_RESPONSES.noData;
 }
 
 async function handleCalculationQuery(query) {
@@ -144,6 +141,21 @@ function parsePensionCalculation(query) {
   const result = pensionCalcService.calculatePension(finalSalary, yearsOfService);
   if (!result) return null;
   return result; // return object for Flex Message building
+}
+
+async function handleServiceYearsQuery(query) {
+  const serviceResult = pensionCalcService.calculateServiceYears(query);
+  if (serviceResult) {
+    return buildAnswerFlex(serviceResult.message);
+  }
+  // fallback to Gemini
+  try {
+    const answer = await PensionGeminiService.answer(query);
+    return buildAnswerFlex(answer);
+  } catch (e) {
+    console.error('Gemini fallback error in service years:', e);
+    return GENERAL_RESPONSES.error;
+  }
 }
 
 module.exports = {

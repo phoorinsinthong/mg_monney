@@ -2,6 +2,8 @@
  * Pension calculation service for civil servants.
  * Provides functions to calculate retirement age and pension amount.
  */
+const { parseDateFromText } = require('../utils/dateParser');
+
 class PensionCalcService {
   /**
    * Calculate retirement age based on birth date.
@@ -82,6 +84,26 @@ class PensionCalcService {
       pensionRate: pensionRate * 100, // percentage
       pensionAmount: Math.round(pensionAmount),
       message: `เงินบำนาญที่คาดว่าจะได้รับต่อเดือน: ${Math.round(pensionAmount)} บาท (คิดจากเงินเดือนสุดท้าย ${finalSalary} บาท × ${(pensionRate*100).toFixed(1)}% ตามปีที่ทำงาน ${yearsOfService} ปี)`
+    };
+  }
+
+  /**
+  * Calculate years of service from start date (DD/MM/YYYY or DD-MM-YYYY or Thai month format)
+  * @param {string} startDateStr - start date in supported formats
+  * @returns {Object} years of service and formatted message
+  */
+  calculateServiceYears(startDateStr) {
+    const parsed = parseDateFromText(startDateStr);
+    if (!parsed) return null;
+    const start = new Date(parsed);
+    const today = new Date();
+    let diff = today - start;
+    if (diff < 0) return null;
+    const years = diff / (1000 * 60 * 60 * 24 * 365.25);
+    const rounded = Math.floor(years);
+    return {
+      years: rounded,
+      message: `คุณทำงานมาแล้วประมาณ ${rounded} ปี (ตั้งแต่ ${parsed})`
     };
   }
 }

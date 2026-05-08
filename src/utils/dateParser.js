@@ -43,6 +43,22 @@ function getYesterday() {
  * ถ้า parse ไม่ได้ return null (ให้ Gemini จัดการ)
  */
 function parseDateFromText(text) {
+  // Added support for Thai month names/abbreviations (e.g., "18 ก.ย. 2561")
+  const thaiMonthMap = {
+    'มกราคม': '01', 'ม.ค.': '01', 'มค': '01',
+    'กุมภาพันธ์': '02', 'ก.พ.': '02', 'กพ': '02',
+    'มีนาคม': '03', 'มี.ค.': '03', 'มค': '03',
+    'เมษายน': '04', 'เม.ย.': '04', 'เมย': '04',
+    'พฤษภาคม': '05', 'พ.ค.': '05', 'พค': '05',
+    'มิถุนายน': '06', 'มิ.ย.': '06', 'มิย': '06',
+    'กรกฎาคม': '07', 'ก.ค.': '07', 'กค': '07',
+    'สิงหาคม': '08', 'ส.ค.': '08', 'สค': '08',
+    'กันยายน': '09', 'ก.ย.': '09', 'กย': '09',
+    'ตุลาคม': '10', 'ต.ค.': '10', 'ตค': '10',
+    'พฤศจิกายน': '11', 'พ.ย.': '11', 'พย': '11',
+    'ธันวาคม': '12', 'ธ.ค.': '12', 'ธค': '12'
+  };
+
   const lowerText = text.toLowerCase();
 
   // วันนี้
@@ -72,6 +88,29 @@ function parseDateFromText(text) {
   if (dashMatch) {
     const [, day, month, year] = dashMatch;
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  // Thai date with month name (e.g., "18 ก.ย. 2561")
+  const thaiMatch = text.match(/(\d{1,2})\s+([฀-๿\.]+)\s+(\d{4})/);
+  if (thaiMatch) {
+    let [, day, monthName, year] = thaiMatch;
+    let monthKey = monthName.trim();
+    let monthNum = thaiMonthMap[monthKey];
+    if (!monthNum) {
+      // try without periods
+      monthKey = monthKey.replace(/\./g, '');
+      monthNum = thaiMonthMap[monthKey];
+    }
+    if (!monthNum) {
+      // try with added period
+      monthNum = thaiMonthMap[monthKey + '.'];
+    }
+    if (monthNum) {
+      // Convert Buddhist Era year to Gregorian if needed (>2500)
+      let yr = parseInt(year, 10);
+      if (yr > 2500) yr -= 543;
+      return `${yr}-${monthNum}-${day.padStart(2, '0')}`;
+    }
   }
 
   return null; // ให้ Gemini จัดการ
