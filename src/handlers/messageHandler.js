@@ -3,7 +3,7 @@
 const PensionService = require('../services/pensionService');
 const PensionGeminiService = require('../services/pensionGeminiService');
 const PensionCalcService = require('../services/pensionCalcService');
-const { buildPensionFlex, buildCalculationFlex } = require('../messages/flexPension');
+const { buildPensionFlex, buildCalculationFlex, buildAnswerFlex } = require('../messages/flexPension');
 
 const pensionService = new PensionService();
 const pensionCalcService = new PensionCalcService();
@@ -61,7 +61,7 @@ async function handlePensionQuery(query) {
   // Fallback to Gemini AI
   try {
     const answer = await PensionGeminiService.answer(query);
-    return answer;
+    return buildAnswerFlex(answer);
   } catch (e) {
     console.error('Gemini fallback error:', e);
     return GENERAL_RESPONSES.error;
@@ -82,7 +82,7 @@ async function handleCalculationQuery(query) {
   // If we detected calculation intent but couldn't parse, fallback to Gemini AI
   try {
     const answer = await PensionGeminiService.answer(query);
-    return answer;
+    return buildAnswerFlex(answer);
   } catch (e) {
     console.error('Gemini fallback error in calculation:', e);
     return GENERAL_RESPONSES.error;
