@@ -3,7 +3,7 @@
 const PensionService = require('../services/pensionService');
 const PensionGeminiService = require('../services/pensionGeminiService');
 const PensionCalcService = require('../services/pensionCalcService');
-const { buildPensionFlex } = require('../messages/flexPension');
+const { buildPensionFlex, buildCalculationFlex } = require('../messages/flexPension');
 
 const pensionService = new PensionService();
 const pensionCalcService = new PensionCalcService();
@@ -72,12 +72,12 @@ async function handleCalculationQuery(query) {
   // Try to parse for retirement age calculation
   const retirementResult = parseRetirementCalculation(query);
   if (retirementResult) {
-    return retirementResult;
+    return buildCalculationFlex('retirement', retirementResult);
   }
   // Try to parse for pension amount calculation
   const pensionResult = parsePensionCalculation(query);
   if (pensionResult) {
-    return pensionResult;
+    return buildCalculationFlex('pension', pensionResult);
   }
   // If we detected calculation intent but couldn't parse, fallback to Gemini AI
   try {
@@ -109,17 +109,7 @@ function parseRetirementCalculation(query) {
 
   const result = pensionCalcService.calculateRetirementAge(dateStr);
   if (!result) return null;
-  // Format a detailed response
-  let response = `📅 ข้อมูลการเกษียณ:\n`;
-  response += `- อายุปัจจุบัน: ${result.currentAge} ปี\n`;
-  response += `- อายุเกษียณ: ${result.retirementAge} ปี\n`;
-  if (result.yearsToRetirement > 0) {
-    response += `- จะเกษียณในอีก: ${result.yearsToRetirement} ปี\n`;
-    response += `- วันที่เกษียณ: ${result.retirementDate}\n`;
-  } else {
-    response += `- คุณเกินอายุเกษียณแล้ว (${result.currentAge} ปี)\n`;
-  }
-  return response;
+  return result; // return object for Flex Message building
 }
 
 function parsePensionCalculation(query) {
@@ -145,7 +135,7 @@ function parsePensionCalculation(query) {
   if (finalSalary === null || yearsOfService === null) return null;
   const result = pensionCalcService.calculatePension(finalSalary, yearsOfService);
   if (!result) return null;
-  return result.message;
+  return result; // return object for Flex Message building
 }
 
 module.exports = {
