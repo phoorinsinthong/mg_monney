@@ -12,15 +12,30 @@ class PensionCalcService {
   calculateRetirementAge(birthDateStr) {
     if (!birthDateStr) return null;
     let birthDate;
-    // Try parsing YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(birthDateStr)) {
-      birthDate = new Date(birthDateStr);
-    } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(birthDateStr)) {
-      const parts = birthDateStr.split('/');
-      birthDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    // Normalize input: replace any slash with dash, then split
+    const normalized = birthDateStr.replace(/\//g, '-');
+    const parts = normalized.split('-');
+    if (parts.length !== 3) return null;
+
+    let year, month, day;
+    if (parts[0].length === 4) {
+      // YYYY-MM-DD
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1; // 0-indexed
+      day = parseInt(parts[2], 10);
     } else {
-      return null;
+      // Assume DD-MM-YYYY or DD/MM/YYYY
+      day = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10) - 1;
+      year = parseInt(parts[2], 10);
     }
+
+    // Handle Buddhist Era (BE) if year > 2500
+    if (year > 2500) {
+      year = year - 543;
+    }
+
+    birthDate = new Date(year, month, day);
     if (isNaN(birthDate.getTime())) return null;
 
     const today = new Date();
@@ -29,6 +44,7 @@ class PensionCalcService {
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
+
     const retirementAge = 60;
     const yearsToRetirement = retirementAge - age;
     const retirementDate = new Date(birthDate);

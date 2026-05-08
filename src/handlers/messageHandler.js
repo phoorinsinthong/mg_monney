@@ -90,19 +90,36 @@ async function handleCalculationQuery(query) {
 }
 
 function parseRetirementCalculation(query) {
-  // Look for date patterns: YYYY-MM-DD or DD/MM/YYYY
-  const dateMatch = query.match(/(\d{4}-\d{2}-\d{2})|(\d{2}\/\d{2}\/\d{4})/);
-  if (!dateMatch) return null;
-  let dateStr = dateMatch[0];
-  // Normalize to YYYY-MM-DD for the service
-  if (dateStr.includes('/')) {
-    const parts = dateStr.split('/');
-    dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+  // Try YYYY-MM-DD pattern
+  let dateMatch = query.match(/(\d{4}-\d{2}-\d{2})/);
+  let dateStr = null;
+  if (dateMatch) {
+    dateStr = dateMatch[1];
+  } else {
+    // Try DD/MM/YYYY pattern
+    dateMatch = query.match(/(\d{2}\/\d{2}\/\d{4})/);
+    if (dateMatch) {
+      dateStr = dateMatch[1];
+      // Normalize to YYYY-MM-DD
+      const parts = dateStr.split('/');
+      dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
   }
+  if (!dateStr) return null;
+
   const result = pensionCalcService.calculateRetirementAge(dateStr);
   if (!result) return null;
-  // Return as a simple text message (could be Flex but keep simple for now)
-  return result.message;
+  // Format a detailed response
+  let response = `📅 ข้อมูลการเกษียณ:\n`;
+  response += `- อายุปัจจุบัน: ${result.currentAge} ปี\n`;
+  response += `- อายุเกษียณ: ${result.retirementAge} ปี\n`;
+  if (result.yearsToRetirement > 0) {
+    response += `- จะเกษียณในอีก: ${result.yearsToRetirement} ปี\n`;
+    response += `- วันที่เกษียณ: ${result.retirementDate}\n`;
+  } else {
+    response += `- คุณเกินอายุเกษียณแล้ว (${result.currentAge} ปี)\n`;
+  }
+  return response;
 }
 
 function parsePensionCalculation(query) {
