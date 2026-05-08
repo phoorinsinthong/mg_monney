@@ -29,7 +29,7 @@ function isHelpRequest(msg) {
 // Detect if query is a calculation request
 function isCalculationQuery(msg) {
   const lower = msg.toLowerCase();
-  const calcKeywords = ['คำนวณ', 'คำนวน', 'เกษียณ', 'อายุราชการ', 'บำนาญ', 'เงินบำนาญ'];
+  const calcKeywords = ['คำนวณ', 'คำนวน', 'เกษียณ', 'อายุราชการ', 'บำนาญ', 'เงินบำนาญ', 'อายุเท่าไหร่จะเกษียณ', 'จะได้บำนาญเท่าไหร่', 'คำนวณบำนาญ'];
   return calcKeywords.some(k => lower.includes(k));
 }
 
@@ -55,12 +55,20 @@ async function handleTextMessage(userId, userMessage) {
 async function handlePensionQuery(query) {
   // Try knowledge base first
   const kbResult = pensionService.search(query);
-  if (kbResult) {
+  // If good match (score <= 0.4, where 0 is exact match)
+  if (kbResult && kbResult._score !== undefined && kbResult._score <= 0.4) {
     return buildPensionFlex(kbResult); // Flex Message object
   }
-  // Fallback to Gemini AI
+
+  // If low-confidence match, use as context for Gemini
+  let context = '';
+  if (kbResult) {
+    context = `\n\nข้อมูลเพิ่มเติมจากฐานความรู้: ${kbResult.answer} (แหล่งที่มา: ${kbResult.source_url || 'ไม่ระบุ'})`;
+  }
+
+  // Fallback to Gemini AI with optional context
   try {
-    const answer = await PensionGeminiService.answer(query);
+    const answer = await PensionGeminiService.answer(query + context);
     return buildAnswerFlex(answer);
   } catch (e) {
     console.error('Gemini fallback error:', e);

@@ -16,6 +16,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "fuse.js": "^7.0.0",
     "@google/generative-ai": "^0.24.0",
     "@line/bot-sdk": "^9.6.0",
     "dotenv": "^16.4.7",

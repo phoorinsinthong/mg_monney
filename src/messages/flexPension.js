@@ -277,4 +277,44 @@ function buildCalculationFlex(type, data) {
   };
 }
 
-module.exports = { buildPensionFlex, buildCalculationFlex };
+function buildAnswerFlex(answerText) {
+  return {
+    type: 'flex',
+    altText: 'คำตอบจาก AI',
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#1DB446', // LINE green
+        paddingAll: '12px',
+        contents: [
+          {
+            type: 'text',
+            text: '💡 คำตอบจาก AI',
+            color: '#ffffff',
+            weight: 'bold',
+            size: 'lg',
+            align: 'center'
+          }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: '16px',
+        contents: [
+          {
+            type: 'text',
+            text: answerText,
+            wrap: true,
+            size: 'sm',
+            color: '#333333'
+          }
+        ]
+      }
+    }
+  };
+}
+
+module.exports = { buildPensionFlex, buildCalculationFlex, buildAnswerFlex };
