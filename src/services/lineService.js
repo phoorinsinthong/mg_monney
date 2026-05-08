@@ -5,7 +5,6 @@
 const line = require('@line/bot-sdk');
 const { config } = require('../config');
 const { handleTextMessage } = require('../handlers/messageHandler');
-const { GENERAL_RESPONSES } = require('../messages');
 
 const lineClient = new line.messagingApi.MessagingApiClient({
   channelAccessToken: config.line.channelAccessToken,
@@ -15,7 +14,8 @@ async function handleEvent(event) {
   if (event.type !== 'message') return null;
 
   if (event.message.type !== 'text') {
-    return replyPayload(event.replyToken, GENERAL_RESPONSES.notText);
+    // Non‑text messages are not supported – reply with a short notice
+    return replyPayload(event.replyToken, 'ขออภัย, Bot รองรับข้อความข้อความเท่านั้น');
   }
 
   const userId = event.source?.userId || null;

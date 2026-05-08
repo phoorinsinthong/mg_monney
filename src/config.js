@@ -13,13 +13,6 @@ const config = {
     model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
   },
 
-  // Supabase
-  supabase: {
-    url: process.env.SUPABASE_URL,
-    anonKey: process.env.SUPABASE_ANON_KEY,
-    table: 'transactions',
-  },
-
   // Server
   port: process.env.PORT || 3000,
 };
@@ -30,8 +23,6 @@ function validateConfig() {
     ['LINE_CHANNEL_ACCESS_TOKEN', config.line.channelAccessToken],
     ['LINE_CHANNEL_SECRET', config.line.channelSecret],
     ['GEMINI_API_KEY', config.gemini.apiKey],
-    ['SUPABASE_URL', config.supabase.url],
-    ['SUPABASE_ANON_KEY', config.supabase.anonKey],
   ];
 
   const missing = required

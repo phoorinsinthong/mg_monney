@@ -1,122 +1,57 @@
-const { parseExpenseMessage } = require('../services/geminiService');
-const { appendTransaction, getTransactions } = require('../services/transactionService');
-const {
-  GENERAL_RESPONSES,
-  generateConfirmQuickReply,
-  generateFlexSummary,
-  generateMissingFieldReply,
-  generateTransactionFlex,
-  isAnalysisRequest,
-  isGreeting,
-  isHelpRequest,
-  parseSummaryPeriod,
-} = require('../messages');
-const { shouldAutoSaveTransaction } = require('../utils/transactionRules');
-const { clearPending, getPending, setPending } = require('../state/pendingConfirmations');
+// Message handler – only handles pension/เบี้ยหวัด queries (Thai)
 
-const CONFIRM_YES = ['ใช่', 'yes', 'ใช่ครับ', 'ใช่ค่ะ', 'ตกลง', 'ok', 'โอเค', 'ได้', 'บันทึก', 'ถูก', 'ถูกต้อง', '✅', '👍'];
-const CONFIRM_NO = ['ไม่', 'no', 'ไม่ใช่', 'ไม่ถูก', 'ผิด', 'ยกเลิก', 'cancel', '❌', '👎'];
+const PensionService = require('../services/pensionService');
+const PensionGeminiService = require('../services/pensionGeminiService');
+const { buildPensionFlex } = require('../messages/flexPension');
+
+const pensionService = new PensionService();
+
+// Simple response utilities
+const GENERAL_RESPONSES = {
+  greeting: 'สวัสดีครับ/ค่ะ! มีอะไรให้ช่วยเกี่ยวกับเบี้ยหวัดหรือบำนาญได้บ้างครับ/คะ?',
+  help: 'ส่งคำถามเกี่ยวกับเบี้ยหวัดหรือบำนาญมาได้เลย เช่น "สิทธิบำนาญคืออะไร" หรือ "เบี้ยหวัดต้องทำอย่างไร"',
+  error: 'ขออภัยค่ะ เกิดข้อผิดพลาดบางอย่าง ลองใหม่อีกครั้งนะคะ',
+  noData: 'ไม่พบข้อมูลที่ต้องการครับ/ค่ะ',
+};
+
+function isGreeting(msg) {
+  const greetings = ['สวัสดี', 'hello', 'hi', 'ฮัลโล'];
+  return greetings.some(g => msg.toLowerCase().includes(g));
+}
+
+function isHelpRequest(msg) {
+  const helpWords = ['ช่วย', 'วิธี', 'อย่างไร', 'info'];
+  return helpWords.some(w => msg.toLowerCase().includes(w));
+}
 
 async function handleTextMessage(userId, userMessage) {
-  const pendingReply = await handlePendingConfirmation(userId, userMessage);
-  if (pendingReply) return pendingReply;
+  // Greeting / help
+  if (isGreeting(userMessage)) return GENERAL_RESPONSES.greeting;
+  if (isHelpRequest(userMessage)) return GENERAL_RESPONSES.help;
 
-  if (isGreeting(userMessage)) {
-    return GENERAL_RESPONSES.greeting;
+  // Pension / เบี้ยหวัด query detection
+  if (userMessage.toLowerCase().includes('เบี้ยหวัด') || userMessage.toLowerCase().includes('บำนาญ')) {
+    return handlePensionQuery(userMessage);
   }
 
-  if (isHelpRequest(userMessage)) {
-    return GENERAL_RESPONSES.help;
-  }
+  // Fallback – ask to phrase as pension query
+  return GENERAL_RESPONSES.help;
+}
 
-  if (isAnalysisRequest(userMessage)) {
-    return buildSummaryReply(userId, userMessage);
+async function handlePensionQuery(query) {
+  // Try knowledge base first
+  const kbResult = pensionService.search(query);
+  if (kbResult) {
+    return buildPensionFlex(kbResult); // Flex Message object
   }
-
-  if (userMessage.length < 2) {
-    return GENERAL_RESPONSES.help;
-  }
-
+  // Fallback to Gemini AI
   try {
-    console.log(`📩 [${userId || 'unknown'}] "${userMessage}"`);
-    const parsed = await parseExpenseMessage(userMessage);
-    console.log('🤖 Gemini:', JSON.stringify(parsed));
-
-    if (parsed.missing_fields && parsed.missing_fields.length > 0) {
-      return generateMissingFieldReply(parsed.missing_fields, parsed);
-    }
-
-    const transactionData = toTransactionData(parsed);
-    if (shouldAutoSaveTransaction(parsed, userMessage)) {
-      return saveAndBuildReply(transactionData, userId);
-    }
-
-    if (userId) {
-      setPending(userId, transactionData);
-    }
-
-    return generateConfirmQuickReply(transactionData);
-  } catch (error) {
-    console.error('❌ Error handling message:', error);
+    const answer = await PensionGeminiService.answer(query);
+    return answer;
+  } catch (e) {
+    console.error('Gemini fallback error:', e);
     return GENERAL_RESPONSES.error;
   }
-}
-
-async function handlePendingConfirmation(userId, userMessage) {
-  if (!userId) return null;
-
-  const pendingData = getPending(userId);
-  if (!pendingData) return null;
-
-  const normalizedMessage = userMessage.toLowerCase().trim();
-
-  if (CONFIRM_YES.some((word) => normalizedMessage === word)) {
-    clearPending(userId);
-    return saveAndBuildReply(pendingData, userId);
-  }
-
-  if (CONFIRM_NO.some((word) => normalizedMessage === word)) {
-    clearPending(userId);
-    return 'ยกเลิกแล้วครับ ถ้าจะบันทึกใหม่ พิมพ์รายการมาได้เลย';
-  }
-
-  clearPending(userId);
-  return null;
-}
-
-async function buildSummaryReply(userId, userMessage) {
-  try {
-    const { dateFrom, dateTo, label } = parseSummaryPeriod(userMessage);
-    console.log(`📊 วิเคราะห์ ${label}: ${dateFrom} → ${dateTo}`);
-
-    const rows = await getTransactions(userId, dateFrom, dateTo);
-    if (rows === null) return GENERAL_RESPONSES.error;
-
-    return generateFlexSummary(rows, label) || GENERAL_RESPONSES.noData;
-  } catch (error) {
-    console.error('❌ Analysis error:', error);
-    return GENERAL_RESPONSES.error;
-  }
-}
-
-async function saveAndBuildReply(transactionData, userId) {
-  const result = await appendTransaction(transactionData, userId);
-  if (result.success) {
-    return generateTransactionFlex(transactionData);
-  }
-
-  console.error('❌ บันทึกไม่สำเร็จ:', result.error);
-  return GENERAL_RESPONSES.error;
-}
-
-function toTransactionData(parsed) {
-  return {
-    item: parsed.item,
-    amount: parsed.amount,
-    category: parsed.category,
-    type: parsed.type,
-    date: parsed.date,
-  };
 }
 
 module.exports = {
