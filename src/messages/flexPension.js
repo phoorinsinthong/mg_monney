@@ -195,14 +195,27 @@ function buildCalculationFlex(type, data) {
   } else if (type === 'pension') {
     headerText = 'คำนวณเงินบำนาญ';
     headerColor = '#7ED321'; // green
+    const schemeText = data.schemeLabel || 'ระบบเดิม (เพดาน 60%)';
+    const salaryLabel = data.scheme === 'gpf' ? 'เงินเดือนเฉลี่ย 60 เดือน' : 'เงินเดือนสุดท้าย';
+    const salaryValue = data.scheme === 'gpf' ? `${data.baseSalary.toLocaleString()} บาท${data.isEstimatedAvg ? ' (โดยประมาณ)' : ''}` : `${data.finalSalary.toLocaleString()} บาท`;
+
     bodyContents = [
       {
         type: 'box',
         layout: 'vertical',
         margin: 'md',
         contents: [
-          { type: 'text', text: 'เงินเดือนสุดท้าย', size: 'sm', color: '#666666', weight: 'bold' },
-          { type: 'text', text: `${data.finalSalary} บาท`, size: 'xl', weight: 'bold', color: '#333333' }
+          { type: 'text', text: 'ระบบการคำนวณ', size: 'sm', color: '#1DB446', weight: 'bold' },
+          { type: 'text', text: schemeText, size: 'md', weight: 'bold', color: '#333333' }
+        ]
+      },
+      {
+        type: 'box',
+        layout: 'vertical',
+        margin: 'md',
+        contents: [
+          { type: 'text', text: salaryLabel, size: 'sm', color: '#666666', weight: 'bold' },
+          { type: 'text', text: salaryValue, size: 'xl', weight: 'bold', color: '#333333' }
         ]
       },
       {
@@ -220,7 +233,7 @@ function buildCalculationFlex(type, data) {
         margin: 'md',
         contents: [
           { type: 'text', text: 'อัตราเงินบำนาญ', size: 'sm', color: '#666666', weight: 'bold' },
-          { type: 'text', text: `${Number(data.pensionRate).toFixed(1)}%`, size: 'xl', weight: 'bold', color: '#333333' }
+          { type: 'text', text: `${Number(data.pensionRate).toFixed(1)}% (สูงสุด ${Number(data.maxRate).toFixed(0)}%)`, size: 'md', weight: 'bold', color: '#333333' }
         ]
       },
       {

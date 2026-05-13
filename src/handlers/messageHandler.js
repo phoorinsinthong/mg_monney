@@ -103,6 +103,27 @@ async function handleCalculationQuery(query) {
     return buildCalculationFlex('pension', pensionResult);
   }
 
+  // If Regex couldn't extract all fields, use advanced Gemini parameter extraction
+  try {
+    const params = await PensionGeminiService.extractCalculationParams(query);
+    if (params) {
+      if (params.intent === 'pension' && params.finalSalary && params.yearsOfService) {
+        const res = pensionCalcService.calculatePension(params.finalSalary, params.yearsOfService, { scheme: params.scheme || 'old' });
+        if (res) return buildCalculationFlex('pension', res);
+      }
+      if (params.intent === 'retirement' && params.birthDate) {
+        const res = pensionCalcService.calculateRetirementAge(params.birthDate);
+        if (res) return buildCalculationFlex('retirement', res);
+      }
+      if (params.intent === 'service_years' && params.birthDate) {
+        const res = pensionCalcService.calculateServiceYears(params.birthDate);
+        if (res) return buildAnswerFlex(res.message);
+      }
+    }
+  } catch (extError) {
+    console.error('Gemini extraction error:', extError);
+  }
+
   // Friendly Guide: If detected intent but missing required data
   const lower = query.toLowerCase();
   if (lower.includes('เกษียณ') && !/\d+/.test(query)) {
@@ -111,7 +132,7 @@ async function handleCalculationQuery(query) {
   if (lower.includes('บำนาญ') && !/\d+/.test(query)) {
     return 'กรุณาระบุเงินเดือนสุดท้ายและอายุงานเพื่อคำนวณบำนาญค่ะ เช่น "เงินเดือน 30000 ทำงาน 25 ปี"';
   }
-  // If we detected calculation intent but couldn't parse, fallback to Gemini AI
+  // If we detected calculation intent but couldn't parse, fallback to Gemini AI answer
   try {
     const answer = await PensionGeminiService.answer(query);
     return buildAnswerFlex(answer);
@@ -150,6 +171,7 @@ function parseRetirementCalculation(query) {
 function parsePensionCalculation(query) {
   let finalSalary = null;
   let yearsOfService = null;
+  const scheme = query.toLowerCase().includes('กบข') ? 'gpf' : 'old';
 
   // "เงินเดือน[คำขยาย] 30000" เช่น "เงินเดือนทหาร 25000"
   const salaryMatch = query.match(/เงินเดือน[ก-๿\s]*?\s*(\d+(?:,\d{3})*(?:\.\d+)?)/);
@@ -165,7 +187,7 @@ function parsePensionCalculation(query) {
     if (bareYears) yearsOfService = parseFloat(bareYears[1]);
   }
   if (finalSalary === null || yearsOfService === null) return null;
-  const result = pensionCalcService.calculatePension(finalSalary, yearsOfService);
+  const result = pensionCalcService.calculatePension(finalSalary, yearsOfService, { scheme });
   if (!result) return null;
   return result; // return object for Flex Message building
 }
@@ -175,8 +197,13 @@ async function handleServiceYearsQuery(query) {
   if (serviceResult) {
     return buildAnswerFlex(serviceResult.message);
   }
-  // fallback to Gemini
+  // fallback to Gemini extraction or direct answer
   try {
+    const params = await PensionGeminiService.extractCalculationParams(query);
+    if (params && params.intent === 'service_years' && params.birthDate) {
+      const res = pensionCalcService.calculateServiceYears(params.birthDate);
+      if (res) return buildAnswerFlex(res.message);
+    }
     const answer = await PensionGeminiService.answer(query);
     return buildAnswerFlex(answer);
   } catch (e) {

@@ -54,12 +54,13 @@ LINE Bot for Pension/Benefits (เบี้ยหวัด, บำนาญ) Q&A
 - "เกษียณแล้วไหม เกิด 15/05/1990"
 - "อายุเท่าไหร่จะเกษียณ 1990-05-15"
 
-#### 2.2 คำนวณเงินบำนาญ (Pension Amount)
-- "คำนวณบำนาญ เงินเดือน 30000 ทำงาน 30 ปี"
-- "จะได้บำนาญเท่าไหร่ เงินเดือน 50000 ทำงาน 25 ปี"
-- "บำนาญที่คาดว่าจะได้ เงินเดือน 25000 อายุงาน 20 ปี"
+#### 2.2 คำนวณเงินบำนาญ (Pension Amount) **[UPDATED]**
+- บอทจะตรวจจับระบบการคำนวณอัตโนมัติ (ระบบเดิม vs กบข.)
+- "คำนวณบำนาญ เงินเดือน 30000 ทำงาน 30 ปี" (ระบบเดิม)
+- "คำนวณบำนาญ กบข. เงินเดือน 50000 ทำงาน 25 ปี" (ระบบ กบข.)
+- "จะได้บำนาญเท่าไหร่ สมาชิก กบข. เงินเดือน 25000 อายุงาน 20 ปี"
 
-#### 2.3 คำนวณอายุราชการ (Service Years) **[NEW]**
+#### 2.3 คำนวณอายุราชการ (Service Years)
 - "อายุราชการ บรรจุ 18 ก.ย. 2561"
 - "อายุราชการ 1 ม.ค. 2555"
 - "ทำงานมาแล้วกี่ปี บรรจุ 15-05-2000"
@@ -70,55 +71,31 @@ LINE Bot for Pension/Benefits (เบี้ยหวัด, บำนาญ) Q&A
 
 ---
 
-## English Version
+## Technical Features & Updates (May 2026)
 
-### 1. General Questions about Pensions/Benefits
-The bot can answer the following questions (available in knowledge base):
+### 🚀 Smart Parameter Extraction (Gemini AI)
+หากบอทไม่สามารถสกัดข้อมูลจากประโยคคำถามด้วย Regular Expression ได้ ระบบจะส่งให้ Gemini AI ช่วยสกัดข้อมูล (Intent, Salary, Years, Dates) ในรูปแบบ JSON เพื่อความแม่นยำสูงสุด แม้ผู้ใช้จะพิมพ์ด้วยภาษาพูดที่เป็นธรรมชาติ
 
-#### 1.1 Elderly Allowance
-- "Who is eligible for elderly allowance?"
-- "How much is the elderly allowance?"
-- "When is the elderly allowance paid?"
+### 📊 Multi-Scheme Pension Calculation
+รองรับการคำนวณบำนาญ 2 ระบบหลัก:
+1.  **ระบบเดิม (Old System)**: เพดาน 60% ของเงินเดือนสุดท้าย
+2.  **ระบบ กบข. (GPF System)**: เพดาน 70% ของเงินเดือนเฉลี่ย 60 เดือนสุดท้าย (ระบบจะช่วยประมาณการอัตโนมัติหากไม่ได้ระบุเงินเดือนเฉลี่ย)
 
-#### 1.2 Disability Allowance
-- "What are the conditions for receiving disability benefits?"
-- "How much is the disability allowance?"
+### 💾 Distributed Caching (Redis Support)
+รองรับการใช้งาน Redis สำหรับการทำ Distributed Cache เพื่อให้บอททำงานได้รวดเร็วและรองรับการขยายตัว (Horizontal Scaling) ในระดับ Production โดยระบบจะ Fallback กลับไปใช้ Memory Cache อัตโนมัติหากไม่มีการเชื่อมต่อ Redis
 
-#### 1.3 Old Age Pension (Social Security)
-- "What is old age pension?"
-- "How many years must I contribute for old age pension?"
-- "Where can I check old age pension status?"
+### 📱 LINE Rich Menu Setup Utility
+มีสคริปต์อัตโนมัติ `src/utils/setupRichMenu.js` สำหรับการตั้งค่า Rich Menu ถาวรให้กับผู้ใช้งานทุกคน เพื่อความสะดวกในการเข้าถึงฟังก์ชันหลัก
 
-#### 1.4 Civil Servant Pension
-- "When do civil servants receive pension?"
-- "How is civil servant pension calculated?"
-- "What documents are needed for civil servant pension application?"
-
-#### 1.5 Military Pension Types 3.1-3.5
-- "What is pension type 3.1?"
-- "What is pension type 3.2?"
-- "What is the latest news about 11,000 Baht pension?"
-
-### 2. Calculations
-
-#### 2.1 Retirement Age Calculation
-- "Calculate retirement age, born 1960-05-15"
-- "When do I retire if born 15/05/1990?"
-
-#### 2.2 Pension Amount Calculation
-- "Calculate pension with salary 30000, 30 years of service"
-- "How much pension will I get with 50000 salary and 25 years?"
-
-#### 2.3 Service Years Calculation **[NEW]**
-- "Service years, appointed 18 Sep 2018"
-- "How many years have I worked since 2000-05-15?"
+### 🧪 Automated Testing
+มีชุดทดสอบ Unit Test ครอบคลุมฟังก์ชันการคำนวณ (`PensionCalcService`) และการวิเคราะห์วันที่ (`dateParser`) เพื่อรักษาความถูกต้องของระบบเงินและเวลา
 
 ---
 
 ## Technical Notes
 
 ### Supported Date Formats:
-- **YYYY-MM-DD** (e.g., 1990-05-15)
+- **YYYY-MM-DD** (e.g., 1990-05-15) **[NEW]**
 - **DD/MM/YYYY** (e.g., 15/05/1990)
 - **DD-MM-YYYY** (e.g., 15-05-1990)
 - **Thai month names** (e.g., 18 ก.ย. 2561, 1 ม.ค. 2555)
@@ -128,13 +105,6 @@ The bot can answer the following questions (available in knowledge base):
 The bot uses fuzzy matching (Fuse.js) to understand paraphrased questions.
 
 ### Response Types:
-- **Flex Messages** for structured Q&A with source URLs
-- **Calculations** return formatted results with details
-- **No match** → returns "ขออภัยค่ะ" (apology message)
-
----
-
-## Limits / Known Issues
-- Cannot answer questions outside the knowledge base scope
-- Calculation queries require specific date or number formats
-- Gemini AI fallback has been disabled for non-matching queries (returns apology instead)
+- **Flex Messages** for structured Q&A and calculations
+- **Quick Replies** to guide the user to key features
+- **AI Answer** fallback via Gemini for complex queries

@@ -76,6 +76,12 @@ function parseDateFromText(text) {
     return getThaiDate(1);
   }
 
+  // Format YYYY-MM-DD (standard ISO)
+  const isoMatch = text.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return isoMatch[0];
+  }
+
   // Format DD/MM/YYYY
   const slashMatch = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (slashMatch) {

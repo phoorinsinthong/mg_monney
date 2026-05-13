@@ -74,37 +74,77 @@ class PensionCalcService {
   }
 
   /**
-   * Calculate pension amount for civil servants.
-   * Formula: pension = finalSalary * 0.025 * yearsOfService (capped at 60% of finalSalary)
+   * Calculate pension amount for civil servants / military.
+   * Supports both Old System (ระบบเดิม) and GPF System (กบข.).
+   * Formula Old: pension = finalSalary * 0.025 * yearsOfService (capped at 60% or 70% depending on rule)
+   * Formula GPF: pension = avgSalary60Months * 0.025 * yearsOfService (capped at 70%)
    * @param {number} finalSalary - Final monthly salary
    * @param {number} yearsOfService - Years of service (can be fractional)
+   * @param {Object} options - Configuration options (scheme: 'old' | 'gpf')
    * @returns {Object} pension amount and details
    */
-  calculatePension(finalSalary, yearsOfService) {
+  calculatePension(finalSalary, yearsOfService, options = {}) {
     if (isNaN(finalSalary) || isNaN(yearsOfService) || finalSalary <= 0 || yearsOfService < 0) {
       return null;
     }
+
+    const scheme = options.scheme || 'old';
     let pensionRate = 0.025 * yearsOfService; // 2.5% per year
-    const maxRate = 0.60; // 60% max
+    let maxRate = 0.60; // default cap for normal old system
+    let baseSalary = finalSalary;
+    let isEstimatedAvg = false;
+
+    if (scheme === 'gpf') {
+      maxRate = 0.70; // GPF allows up to 70%
+      // In GPF, base salary is average of last 60 months.
+      // If user provided averageSalary explicitly in options, use it. Otherwise estimate from finalSalary.
+      if (options.averageSalary && !isNaN(options.averageSalary)) {
+        baseSalary = parseFloat(options.averageSalary);
+      } else {
+        // Estimate average of last 60 months to be roughly 90% of final salary for convenience
+        baseSalary = Math.round(finalSalary * 0.90);
+        isEstimatedAvg = true;
+      }
+    } else {
+      // scheme === 'old'
+      // Check if user specified a special military cap or if yearsOfService is extremely high
+      if (options.capRate) {
+        maxRate = parseFloat(options.capRate);
+      }
+    }
+
     if (pensionRate > maxRate) pensionRate = maxRate;
-    const pensionAmount = finalSalary * pensionRate;
-    // บำเหน็จ = เงินเดือนสุดท้าย × ปีที่ทำงาน (ไม่มี cap)
+    const pensionAmount = baseSalary * pensionRate;
+    
+    // บำเหน็จ = เงินเดือนสุดท้าย × ปีที่ทำงาน (ไม่มี cap) สำหรับระบบเดิม
+    // สำหรับ กบข. บำเหน็จก็ใช้สูตรคล้ายกันแต่รับเงินก้อน กบข. เพิ่มเติม
     const gratuityAmount = finalSalary * yearsOfService;
+
+    const schemeLabel = scheme === 'gpf' ? 'สมาชิก กบข. (เพดาน 70%)' : 'ระบบเดิม (เพดาน 60%)';
+    const salaryLabel = scheme === 'gpf' 
+      ? `เงินเดือนเฉลี่ย 60 เดือน: ${baseSalary.toLocaleString()} บาท${isEstimatedAvg ? ' (โดยประมาณ)' : ''}`
+      : `เงินเดือนสุดท้าย: ${finalSalary.toLocaleString()} บาท`;
+
     return {
+      scheme,
+      schemeLabel,
       finalSalary,
+      baseSalary,
+      isEstimatedAvg,
       yearsOfService,
       pensionRate: pensionRate * 100,
+      maxRate: maxRate * 100,
       pensionAmount: Math.round(pensionAmount),
       gratuityAmount: Math.round(gratuityAmount),
-      message: `บำนาญรายเดือน: ${Math.round(pensionAmount)} บาท | บำเหน็จ (เงินก้อน): ${Math.round(gratuityAmount).toLocaleString()} บาท`
+      message: `[${schemeLabel}] ${salaryLabel} | บำนาญรายเดือน: ${Math.round(pensionAmount).toLocaleString()} บาท | บำเหน็จ: ${Math.round(gratuityAmount).toLocaleString()} บาท`
     };
   }
 
   /**
-  * Calculate years of service from start date (DD/MM/YYYY or DD-MM-YYYY or Thai month format)
-  * @param {string} startDateStr - start date in supported formats
-  * @returns {Object} years of service and formatted message
-  */
+   * Calculate years of service from start date (DD/MM/YYYY or DD-MM-YYYY or Thai month format)
+   * @param {string} startDateStr - start date in supported formats
+   * @returns {Object} years of service and formatted message
+   */
   calculateServiceYears(startDateStr) {
     const parsed = parseDateFromText(startDateStr);
     if (!parsed) return null;
@@ -116,6 +156,7 @@ class PensionCalcService {
     const rounded = Math.floor(years);
     return {
       years: rounded,
+      startDate: parsed,
       message: `คุณทำงานมาแล้วประมาณ ${rounded} ปี (ตั้งแต่ ${parsed})`
     };
   }

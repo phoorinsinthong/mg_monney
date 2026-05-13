@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test": "jest"
   },
   "keywords": [
     "line-bot",
@@ -16,10 +17,14 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "fuse.js": "^7.0.0",
     "@google/generative-ai": "^0.24.0",
     "@line/bot-sdk": "^9.6.0",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "fuse.js": "^7.0.0",
+    "redis": "^5.12.1"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2"
   }
 }
