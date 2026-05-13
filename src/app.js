@@ -15,7 +15,7 @@ function createApp() {
   app.get('/', (req, res) => {
     res.json({
       status: 'ok',
-      name: 'ManageMoney LINE Bot',
+      name: 'Pension QA LINE Bot',
       version: '1.0.0',
       timestamp: new Date().toISOString(),
     });
@@ -23,6 +23,21 @@ function createApp() {
 
   app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
+  });
+
+  app.post('/admin/reload-kb', (req, res) => {
+    try {
+      const { reloadKB } = require('./handlers/messageHandler');
+      if (reloadKB) {
+        reloadKB();
+        return res.json({ status: 'ok', message: 'Knowledge base reloaded successfully' });
+      } else {
+        return res.status(500).json({ status: 'error', message: 'reloadKB handler not available' });
+      }
+    } catch (error) {
+      console.error('❌ Failed to reload KB:', error);
+      return res.status(500).json({ status: 'error', message: error.message });
+    }
   });
 
   app.post('/webhook', lineMiddleware, async (req, res) => {

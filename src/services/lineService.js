@@ -28,6 +28,31 @@ async function handleEvent(event) {
 async function replyPayload(replyToken, payload) {
   try {
     const message = typeof payload === 'string' ? { type: 'text', text: payload } : payload;
+    
+    // Add default Quick Reply buttons to guide the user
+    if (!message.quickReply) {
+      message.quickReply = {
+        items: [
+          {
+            type: 'action',
+            action: { type: 'message', label: 'คำนวณอายุเกษียณ 🧮', text: 'คำนวณอายุเกษียณ' },
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: 'คำนวณบำนาญ 💰', text: 'คำนวณบำนาญ' },
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: 'เบี้ยผู้สูงอายุ 👵', text: 'เบี้ยยังชีพผู้สูงอายุ' },
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: 'เบี้ยคนพิการ ♿', text: 'เบี้ยคนพิการ' },
+          },
+        ],
+      };
+    }
+
     return await lineClient.replyMessage({
       replyToken,
       messages: [message],

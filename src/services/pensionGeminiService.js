@@ -13,8 +13,10 @@ const model = genAI.getGenerativeModel({ model: config.gemini.model });
 const RESPONSE_CACHE = new Map();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+const PensionService = require('./pensionService');
+
 function getCacheKey(query) {
-  return query.trim().toLowerCase();
+  return PensionService.prototype.preprocessQuery(query) || query.trim().toLowerCase();
 }
 
 function getCachedResponse(query) {
@@ -34,7 +36,7 @@ function setCacheResponse(query, answer) {
   RESPONSE_CACHE.set(key, { answer, timestamp: Date.now() });
 }
 
-async function answer(question) {
+async function answer(question, contextData = null) {
   // Check cache first
   const cached = getCachedResponse(question);
   if (cached) {
@@ -42,16 +44,22 @@ async function answer(question) {
     return cached;
   }
 
-  // Build a richer system prompt (reuse existing helper functions for consistency)
+  // Inject context if available
+  let contextStr = '';
+  if (contextData) {
+    contextStr = `\nข้อมูลอ้างอิงเบื้องต้นจากฐานข้อมูล:\nหัวข้อ: ${contextData.topic || '-'}\nคำตอบ: ${contextData.answer || '-'}\nแหล่งที่มา: ${contextData.source_url || '-'}\nหากข้อมูลนี้เกี่ยวข้อง ให้ใช้เป็นแนวทางในการตอบครับ\n`;
+  }
+
+  // Build a richer system prompt
   const systemPrompt = `
 คุณเป็นผู้เชี่ยวชาญด้านกฎหมายและสวัสดิการสังคมของประเทศไทย
-ให้ตอบคำถามเกี่ยวกับ "เบี้ยหวัด" หรือ "บำนาญ" อย่างละเอียดในภาษาไทย
+ให้ตอบคำถามเกี่ยวกับ "เบี้ยหวัด", "บำนาญ" หรือสวัสดิการภาครัฐอย่างละเอียดในภาษาไทย
 - คำตอบควรสั้นกระชับ ตรงประเด็น ไม่ต้องอธิบายยาว
 - หากอ้างอิงข้อมูลจากแหล่งรัฐบาล ให้ใส่ URL ในรูปแบบ (URL) ท้ายประโยค
-- อย่าตอบนอกหัวข้อ ถ้าคำถามไม่เกี่ยวกับเบี้ยหวัดหรือบำนาญ ให้ตอบว่า "ขออภัย ฉันไม่เข้าใจคำถามนี้"
+- อย่าตอบนอกหัวข้อ ถ้าคำถามไม่เกี่ยวกับสวัสดิการสังคม เบี้ยหวัด หรือบำนาญ ให้ตอบว่า "ขออภัย ฉันไม่เข้าใจคำถามนี้"
 `;
 
-  const prompt = `${systemPrompt}\nคำถาม: ${question}\nตอบ:`;
+  const prompt = `${systemPrompt}${contextStr}\nคำถาม: ${question}\nตอบ:`;
   const result = await model.generateContent([prompt]);
   const text = await result.response.text();
   const answerText = text.trim();

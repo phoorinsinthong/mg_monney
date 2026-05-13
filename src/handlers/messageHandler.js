@@ -4,6 +4,7 @@ const PensionService = require('../services/pensionService');
 const PensionGeminiService = require('../services/pensionGeminiService');
 const PensionCalcService = require('../services/pensionCalcService');
 const { buildPensionFlex, buildCalculationFlex, buildAnswerFlex } = require('../messages/flexPension');
+const { parseDateFromText } = require('../utils/dateParser');
 
 const pensionService = new PensionService();
 const pensionCalcService = new PensionCalcService();
@@ -52,25 +53,27 @@ async function handleTextMessage(userId, userMessage) {
     return handleCalculationQuery(userMessage);
   }
 
-  // Pension / เบี้ยหวัด query detection
-  if (userMessage.toLowerCase().includes('เบี้ยหวัด') || userMessage.toLowerCase().includes('บำนาญ')) {
-    return handlePensionQuery(userMessage);
-  }
-
-  // Fallback – ask to phrase as pension query
-  return GENERAL_RESPONSES.help;
+  // Any other text: Try Knowledge Base search followed by Gemini AI fallback
+  return handlePensionQuery(userMessage);
 }
 
 async function handlePensionQuery(query) {
   // Try knowledge base first
   const kbResult = pensionService.search(query);
+  
   // If good match (score <= 0.4, where 0 is exact match)
   if (kbResult && kbResult._score !== undefined && kbResult._score <= 0.4) {
-    return buildPensionFlex(kbResult); // Flex Message object
+    return buildPensionFlex(kbResult);
   }
 
-  // No good match: return apology
-  return GENERAL_RESPONSES.noData;
+  // If low-confidence match or no match: fallback to Gemini AI with KB context
+  try {
+    const answer = await PensionGeminiService.answer(query, kbResult);
+    return buildAnswerFlex(answer);
+  } catch (e) {
+    console.error('Gemini fallback error in pension query:', e);
+    return GENERAL_RESPONSES.error;
+  }
 }
 
 async function handleCalculationQuery(query) {
@@ -84,6 +87,15 @@ async function handleCalculationQuery(query) {
   if (pensionResult) {
     return buildCalculationFlex('pension', pensionResult);
   }
+
+  // Friendly Guide: If detected intent but missing required data
+  const lower = query.toLowerCase();
+  if (lower.includes('เกษียณ') && !/\d+/.test(query)) {
+    return 'กรุณาระบุวันเดือนปีเกิดเพื่อคำนวณอายุเกษียณค่ะ เช่น "เกิด 15 พ.ค. 2500"';
+  }
+  if (lower.includes('บำนาญ') && !/\d+/.test(query)) {
+    return 'กรุณาระบุเงินเดือนสุดท้ายและอายุงานเพื่อคำนวณบำนาญค่ะ เช่น "เงินเดือน 30000 ทำงาน 25 ปี"';
+  }
   // If we detected calculation intent but couldn't parse, fallback to Gemini AI
   try {
     const answer = await PensionGeminiService.answer(query);
@@ -95,19 +107,22 @@ async function handleCalculationQuery(query) {
 }
 
 function parseRetirementCalculation(query) {
-  // Try YYYY-MM-DD pattern
-  let dateMatch = query.match(/(\d{4}-\d{2}-\d{2})/);
-  let dateStr = null;
-  if (dateMatch) {
-    dateStr = dateMatch[1];
-  } else {
-    // Try DD/MM/YYYY pattern
-    dateMatch = query.match(/(\d{2}\/\d{2}\/\d{4})/);
+  // Try parseDateFromText first (supports Thai natural dates, BE years, etc.)
+  let dateStr = parseDateFromText(query);
+  if (!dateStr) {
+    // Try YYYY-MM-DD pattern fallback
+    let dateMatch = query.match(/(\d{4}-\d{2}-\d{2})/);
     if (dateMatch) {
       dateStr = dateMatch[1];
-      // Normalize to YYYY-MM-DD
-      const parts = dateStr.split('/');
-      dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    } else {
+      // Try DD/MM/YYYY pattern fallback
+      dateMatch = query.match(/(\d{2}\/\d{2}\/\d{4})/);
+      if (dateMatch) {
+        dateStr = dateMatch[1];
+        // Normalize to YYYY-MM-DD
+        const parts = dateStr.split('/');
+        dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
     }
   }
   if (!dateStr) return null;
@@ -160,4 +175,5 @@ async function handleServiceYearsQuery(query) {
 
 module.exports = {
   handleTextMessage,
+  reloadKB: () => pensionService.loadKB(),
 };
