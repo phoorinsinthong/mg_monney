@@ -38,8 +38,14 @@ function isHelpRequest(msg) {
 // Detect if query is a calculation request (retirement or pension)
 function isCalculationQuery(msg) {
   const lower = msg.toLowerCase();
-  const calcKeywords = ['คำนวณ', 'คำนวน', 'เกษียณ', 'อายุราชการ', 'บำนาญ', 'เงินบำนาญ', 'อายุเท่าไหร่จะเกษียณ', 'จะได้บำนาญเท่าไหร่', 'คำนวณบำนาญ'];
-  return calcKeywords.some(k => lower.includes(k));
+  // Explicit calc phrases always trigger
+  const explicitCalc = ['คำนวณ', 'คำนวน', 'คำนวณบำนาญ', 'จะได้บำนาญเท่าไหร่', 'อายุเท่าไหร่จะเกษียณ'];
+  if (explicitCalc.some(k => lower.includes(k))) return true;
+  // เกษียณ / อายุราชการ only trigger when there's a number
+  if ((lower.includes('เกษียณ') || lower.includes('อายุราชการ')) && /\d/.test(msg)) return true;
+  // มีทั้งเงินเดือนและปี → ต้องการคำนวณ
+  if (lower.includes('เงินเดือน') && /\d/.test(msg) && lower.includes('ปี')) return true;
+  return false;
 }
 // Detect service years queries (e.g., "อายุราชการ 18 ก.ย. 2561")
 function isServiceYearsQuery(msg) {
@@ -70,8 +76,8 @@ async function handlePensionQuery(query) {
   // Try knowledge base first
   const kbResult = pensionService.search(query);
   
-  // If good match (score <= 0.4, where 0 is exact match)
-  if (kbResult && kbResult._score !== undefined && kbResult._score <= 0.4) {
+  // If good match (score <= 0.5, where 0 is exact match)
+  if (kbResult && kbResult._score !== undefined && kbResult._score <= 0.5) {
     return buildPensionFlex(kbResult);
   }
 
@@ -142,24 +148,21 @@ function parseRetirementCalculation(query) {
 }
 
 function parsePensionCalculation(query) {
-  // Extract two numbers: final salary and years of service
-  // Look for patterns like "เงินเดือน 30000" หรือ "ทำงาน 30 ปี"
-  const salaryMatch = query.match(/เงินเดือน\s*(\d+(?:,\d{3})*(?:\.\d+)?)/);
-  const yearsMatch = query.match(/(\d+(?:\.\d+)?)\s*ปี/);
   let finalSalary = null;
   let yearsOfService = null;
-  if (salaryMatch) {
-    finalSalary = parseFloat(salaryMatch[1].replace(/,/g, ''));
-  }
-  if (yearsMatch) {
-    yearsOfService = parseFloat(yearsMatch[1]);
-  }
-  // Also look for alternative patterns like "ทำงาน 30 ปี" or "ทำงานมา 30 ปี"
-  if (!yearsOfService) {
-    const yearsMatch2 = query.match(/(?:ทำงาน|ทำงานมา|ระยะเวลาทำงาน)\s*(\d+(?:\.\d+)?)\s*ปี/);
-    if (yearsMatch2) {
-      yearsOfService = parseFloat(yearsMatch2[1]);
-    }
+
+  // "เงินเดือน[คำขยาย] 30000" เช่น "เงินเดือนทหาร 25000"
+  const salaryMatch = query.match(/เงินเดือน[ก-๿\s]*?\s*(\d+(?:,\d{3})*(?:\.\d+)?)/);
+  if (salaryMatch) finalSalary = parseFloat(salaryMatch[1].replace(/,/g, ''));
+
+  // "ทำงาน/อายุราชการ N ปี"
+  const yearsMatch = query.match(/(?:ทำงาน|ทำงานมา|ระยะเวลาทำงาน|อายุราชการ)\s*(\d+(?:\.\d+)?)\s*ปี/);
+  if (yearsMatch) yearsOfService = parseFloat(yearsMatch[1]);
+
+  // fallback: bare "N ปี" ถ้าไม่มี pattern ข้างต้น
+  if (yearsOfService === null) {
+    const bareYears = query.match(/(\d+(?:\.\d+)?)\s*ปี/);
+    if (bareYears) yearsOfService = parseFloat(bareYears[1]);
   }
   if (finalSalary === null || yearsOfService === null) return null;
   const result = pensionCalcService.calculatePension(finalSalary, yearsOfService);

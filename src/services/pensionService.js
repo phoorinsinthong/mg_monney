@@ -27,7 +27,15 @@ class PensionService {
       console.error('Error loading KB:', e);
       this.kb = [];
     }
-    this.fuse = new Fuse(this.kb, { keys: ['question', 'topic', 'answer'], threshold: 0.4, includeScore: true });
+    this.fuse = new Fuse(this.kb, {
+      keys: [
+        { name: 'question', weight: 3 },
+        { name: 'topic', weight: 2 },
+        { name: 'answer', weight: 1 },
+      ],
+      threshold: 0.6,
+      includeScore: true,
+    });
   }
 
   preprocessQuery(query) {

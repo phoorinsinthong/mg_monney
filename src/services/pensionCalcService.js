@@ -42,8 +42,12 @@ class PensionCalcService {
       year = year - 543;
     }
 
+    // Validate ranges before constructing Date
+    if (month < 0 || month > 11 || day < 1 || day > 31 || year < 1900 || year > 2100) return null;
     birthDate = new Date(year, month, day);
     if (isNaN(birthDate.getTime())) return null;
+    // Reject if JS normalized the date (e.g. month 13 rolled over)
+    if (birthDate.getFullYear() !== year || birthDate.getMonth() !== month || birthDate.getDate() !== day) return null;
 
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
