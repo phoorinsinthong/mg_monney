@@ -15,7 +15,7 @@ async function handleEvent(event) {
 
   if (event.message.type !== 'text') {
     // Non‑text messages are not supported – reply with a short notice
-    return replyPayload(event.replyToken, 'ขออภัย, Bot รองรับข้อความข้อความเท่านั้น');
+    return replyPayload(event.replyToken, 'ขออภัยค่ะ Bot รองรับเฉพาะข้อความเท่านั้น');
   }
 
   const userId = event.source?.userId || null;
@@ -48,6 +48,14 @@ async function replyPayload(replyToken, payload) {
           {
             type: 'action',
             action: { type: 'message', label: 'เบี้ยคนพิการ ♿', text: 'เบี้ยคนพิการ' },
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: 'บำนาญข้าราชการ 📋', text: 'บำนาญข้าราชการคืออะไร' },
+          },
+          {
+            type: 'action',
+            action: { type: 'message', label: 'วิธีขอรับสิทธิ 📝', text: 'วิธีขอรับเบี้ยหวัด' },
           },
         ],
       };

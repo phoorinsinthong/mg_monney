@@ -220,7 +220,7 @@ function buildCalculationFlex(type, data) {
         margin: 'md',
         contents: [
           { type: 'text', text: 'อัตราเงินบำนาญ', size: 'sm', color: '#666666', weight: 'bold' },
-          { type: 'text', text: `${data.pensionRate}%`, size: 'xl', weight: 'bold', color: '#333333' }
+          { type: 'text', text: `${Number(data.pensionRate).toFixed(1)}%`, size: 'xl', weight: 'bold', color: '#333333' }
         ]
       },
       {
@@ -232,8 +232,17 @@ function buildCalculationFlex(type, data) {
         layout: 'vertical',
         margin: 'md',
         contents: [
-          { type: 'text', text: '💰 เงินบำนาญที่คาดว่าจะได้รับต่อเดือน', size: 'sm', color: '#666666', weight: 'bold' },
-          { type: 'text', text: `${data.pensionAmount} บาท`, size: 'xxl', weight: 'bold', color: '#1DB446' }
+          { type: 'text', text: '💰 บำนาญรายเดือน', size: 'sm', color: '#666666', weight: 'bold' },
+          { type: 'text', text: `${data.pensionAmount.toLocaleString()} บาท`, size: 'xxl', weight: 'bold', color: '#1DB446' }
+        ]
+      },
+      {
+        type: 'box',
+        layout: 'vertical',
+        margin: 'md',
+        contents: [
+          { type: 'text', text: '💵 บำเหน็จ (เงินก้อนครั้งเดียว)', size: 'sm', color: '#666666', weight: 'bold' },
+          { type: 'text', text: `${data.gratuityAmount.toLocaleString()} บาท`, size: 'xl', weight: 'bold', color: '#4A90E2' }
         ]
       }
     ];

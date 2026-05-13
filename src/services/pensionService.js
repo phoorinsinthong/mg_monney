@@ -15,27 +15,20 @@ class PensionService {
 
   loadKB() {
     try {
-      // Existing load logic
-      // Ensure the kbPath is an absolute path before reading
       const absoluteKbPath = path.resolve(this.kbPath);
-      console.log(`Loading KB from: ${absoluteKbPath}`); // Debugging log
       if (!fs.existsSync(absoluteKbPath)) {
         console.warn(`KB file not found at ${absoluteKbPath}. Initializing with empty KB.`);
         this.kb = [];
-        this.fuse = new Fuse(this.kb, { keys: ['question', 'topic', 'answer'], threshold: 0.4, includeScore: true });
-        return;
+      } else {
+        const raw = fs.readFileSync(absoluteKbPath, 'utf8');
+        this.kb = JSON.parse(raw);
       }
-      const raw = fs.readFileSync(absoluteKbPath, 'utf8');
-      this.kb = JSON.parse(raw);
-      console.log(`Loaded ${this.kb.length} items from KB.`);
     } catch (e) {
       console.error('Error loading KB:', e);
-      this.kb = []; // Ensure kb is an array even on error
+      this.kb = [];
     }
-    // Initialize Fuse after KB is loaded
     this.fuse = new Fuse(this.kb, { keys: ['question', 'topic', 'answer'], threshold: 0.4, includeScore: true });
   }
-    // Duplicate loadKB block removed
 
   preprocessQuery(query) {
     if (!query) return '';
@@ -49,26 +42,16 @@ class PensionService {
   }
 
   search(query) {
-    if (!query || this.kb.length === 0) {
-      console.log('Search query or KB is empty.');
-      return null;
-    }
+    if (!query || this.kb.length === 0) return null;
 
     const q = this.preprocessQuery(query);
-    console.log(`Searching KB for: "${q}"`);
-
-    // Use Fuse fuzzy search
     const results = this.fuse.search(q);
     if (results.length > 0) {
       const best = results[0];
-      console.log('Found item in KB (score:', best.score, '):', best.item);
-      // Attach score for potential use by caller
       best.item._score = best.score;
       return best.item;
-    } else {
-      console.log('No matching item found in KB.');
-      return null;
     }
+    return null;
   }
 }
 

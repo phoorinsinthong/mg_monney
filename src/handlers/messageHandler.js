@@ -17,12 +17,20 @@ const GENERAL_RESPONSES = {
   noData: 'ขออภัยค่ะ',
 };
 
+const PENSION_CONTEXT_KEYWORDS = ['บำนาญ', 'เบี้ยหวัด', 'เบี้ย', 'บำเหน็จ', 'เกษียณ', 'สิทธิ', 'ราชการ', 'ชราภาพ', 'ผู้สูงอายุ'];
+
+function hasPensionContext(msg) {
+  return PENSION_CONTEXT_KEYWORDS.some(k => msg.includes(k));
+}
+
 function isGreeting(msg) {
+  if (hasPensionContext(msg)) return false;
   const greetings = ['สวัสดี', 'hello', 'hi', 'ฮัลโล'];
   return greetings.some(g => msg.toLowerCase().includes(g));
 }
 
 function isHelpRequest(msg) {
+  if (hasPensionContext(msg)) return false;
   const helpWords = ['ช่วย', 'วิธี', 'อย่างไร', 'info'];
   return helpWords.some(w => msg.toLowerCase().includes(w));
 }
@@ -35,25 +43,26 @@ function isCalculationQuery(msg) {
 }
 // Detect service years queries (e.g., "อายุราชการ 18 ก.ย. 2561")
 function isServiceYearsQuery(msg) {
-  const lower = msg.toLowerCase();
-  return lower.includes('อายุราชการ') && /\d{1,2}\s*[กจ\/\.]*\s*\d{4}/.test(lower);
+  return msg.includes('อายุราชการ') && /\d{1,2}[\s\/\-]+[ก-๿\.]+[\s\.]*\d{4}/.test(msg);
 }
 
+const MAX_INPUT_LENGTH = 500;
+
 async function handleTextMessage(userId, userMessage) {
-  // Service years query detection (e.g., "อายุราชการ 18 ก.ย. 2561")
+  if (userMessage.length > MAX_INPUT_LENGTH) {
+    return 'ข้อความยาวเกินไปค่ะ กรุณาสรุปคำถามให้สั้นลง (ไม่เกิน 500 ตัวอักษร)';
+  }
+
   if (isServiceYearsQuery(userMessage)) {
     return handleServiceYearsQuery(userMessage);
   }
-  // Greeting / help
   if (isGreeting(userMessage)) return GENERAL_RESPONSES.greeting;
   if (isHelpRequest(userMessage)) return GENERAL_RESPONSES.help;
 
-  // Check if it's a calculation query
   if (isCalculationQuery(userMessage)) {
     return handleCalculationQuery(userMessage);
   }
 
-  // Any other text: Try Knowledge Base search followed by Gemini AI fallback
   return handlePensionQuery(userMessage);
 }
 

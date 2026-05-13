@@ -1,8 +1,13 @@
-/**
- * Pension calculation service for civil servants.
- * Provides functions to calculate retirement age and pension amount.
- */
 const { parseDateFromText } = require('../utils/dateParser');
+
+const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+function toThaiDate(date) {
+  const d = date.getDate();
+  const m = THAI_MONTHS[date.getMonth()];
+  const y = date.getFullYear() + 543;
+  return `${d} ${m} ${y}`;
+}
 
 class PensionCalcService {
   /**
@@ -52,13 +57,14 @@ class PensionCalcService {
     const retirementDate = new Date(birthDate);
     retirementDate.setFullYear(retirementDate.getFullYear() + retirementAge);
 
+    const retirementDateStr = toThaiDate(retirementDate);
     return {
       currentAge: age,
       retirementAge: retirementAge,
       yearsToRetirement: yearsToRetirement > 0 ? yearsToRetirement : 0,
-      retirementDate: retirementDate.toISOString().split('T')[0],
+      retirementDate: retirementDateStr,
       message: yearsToRetirement > 0
-        ? `คุณจะเกษียณอายุในอีก ${yearsToRetirement} ปี (วันที่ ${retirementDate.toISOString().split('T')[0]})`
+        ? `คุณจะเกษียณอายุในอีก ${yearsToRetirement} ปี (วันที่ ${retirementDateStr})`
         : `คุณมีอายุ ${age} ปีแล้ว ซึ่งเกินหรือเท่ากับอายุเกษียณ 60 ปี`
     };
   }
@@ -78,12 +84,15 @@ class PensionCalcService {
     const maxRate = 0.60; // 60% max
     if (pensionRate > maxRate) pensionRate = maxRate;
     const pensionAmount = finalSalary * pensionRate;
+    // บำเหน็จ = เงินเดือนสุดท้าย × ปีที่ทำงาน (ไม่มี cap)
+    const gratuityAmount = finalSalary * yearsOfService;
     return {
       finalSalary,
       yearsOfService,
-      pensionRate: pensionRate * 100, // percentage
+      pensionRate: pensionRate * 100,
       pensionAmount: Math.round(pensionAmount),
-      message: `เงินบำนาญที่คาดว่าจะได้รับต่อเดือน: ${Math.round(pensionAmount)} บาท (คิดจากเงินเดือนสุดท้าย ${finalSalary} บาท × ${(pensionRate*100).toFixed(1)}% ตามปีที่ทำงาน ${yearsOfService} ปี)`
+      gratuityAmount: Math.round(gratuityAmount),
+      message: `บำนาญรายเดือน: ${Math.round(pensionAmount)} บาท | บำเหน็จ (เงินก้อน): ${Math.round(gratuityAmount).toLocaleString()} บาท`
     };
   }
 
