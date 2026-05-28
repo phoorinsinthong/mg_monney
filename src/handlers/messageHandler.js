@@ -87,6 +87,17 @@ async function handlePensionQuery(query) {
     return buildAnswerFlex(answer);
   } catch (e) {
     console.error('Gemini fallback error in pension query:', e);
+    
+    // If Gemini fails but we have some KB result (even if score > 0.5), return it as a fallback!
+    if (kbResult) {
+      console.log(`Gemini failed. Falling back to KB result with score ${kbResult._score}`);
+      return buildPensionFlex(kbResult);
+    }
+    
+    // If Gemini fails and no KB result, return a more helpful error message
+    if (e.status === 429 || (e.message && (e.message.includes('quota') || e.message.includes('API key') || e.message.includes('RESOURCE_EXHAUSTED')))) {
+      return '⚠️ เกิดข้อผิดพลาดกับ Gemini API (โควต้าหมดหรือ API Key ไม่ถูกต้อง) กรุณาตรวจสอบหรือตั้งค่า GEMINI_API_KEY ในไฟล์ .env ใหม่ค่ะ';
+    }
     return GENERAL_RESPONSES.error;
   }
 }
@@ -138,6 +149,9 @@ async function handleCalculationQuery(query) {
     return buildAnswerFlex(answer);
   } catch (e) {
     console.error('Gemini fallback error in calculation:', e);
+    if (e.status === 429 || (e.message && (e.message.includes('quota') || e.message.includes('API key') || e.message.includes('RESOURCE_EXHAUSTED')))) {
+      return '⚠️ เกิดข้อผิดพลาดกับ Gemini API (โควต้าหมดหรือ API Key ไม่ถูกต้อง) กรุณาตรวจสอบหรือตั้งค่า GEMINI_API_KEY ในไฟล์ .env ใหม่ค่ะ';
+    }
     return GENERAL_RESPONSES.error;
   }
 }
