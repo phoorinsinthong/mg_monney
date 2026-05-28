@@ -64,6 +64,12 @@ describe('PensionCalcService', () => {
       expect(typeof result.yearsToRetirement).toBe('number');
     });
 
+    test('should calculate correctly for custom retirement age', () => {
+      const result = calcService.calculateRetirementAge('1980-05-15', { retirementAge: 55 });
+      expect(result).not.toBeNull();
+      expect(result.retirementAge).toBe(55);
+    });
+
     test('should return null for invalid date formats', () => {
       expect(calcService.calculateRetirementAge('invalid-date')).toBeNull();
       expect(calcService.calculateRetirementAge('9999-99-99')).toBeNull();

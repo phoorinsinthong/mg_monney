@@ -16,7 +16,7 @@ class PensionCalcService {
    * @param {string} birthDateStr - Date in format YYYY-MM-DD or DD/MM/YYYY
    * @returns {Object} retirement age and date
    */
-  calculateRetirementAge(birthDateStr) {
+  calculateRetirementAge(birthDateStr, options = {}) {
     if (!birthDateStr) return null;
     let birthDate;
     // Normalize input: replace any slash with dash, then split
@@ -56,7 +56,7 @@ class PensionCalcService {
       age--;
     }
 
-    const retirementAge = 60;
+    const retirementAge = options.retirementAge || 60;
     const yearsToRetirement = retirementAge - age;
     const retirementDate = new Date(birthDate);
     retirementDate.setFullYear(retirementDate.getFullYear() + retirementAge);
@@ -69,7 +69,7 @@ class PensionCalcService {
       retirementDate: retirementDateStr,
       message: yearsToRetirement > 0
         ? `คุณจะเกษียณอายุในอีก ${yearsToRetirement} ปี (วันที่ ${retirementDateStr})`
-        : `คุณมีอายุ ${age} ปีแล้ว ซึ่งเกินหรือเท่ากับอายุเกษียณ 60 ปี`
+        : `คุณมีอายุ ${age} ปีแล้ว ซึ่งเกินหรือเท่ากับอายุเกษียณ ${retirementAge} ปี`
     };
   }
 

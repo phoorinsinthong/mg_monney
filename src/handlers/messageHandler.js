@@ -123,7 +123,7 @@ async function handleCalculationQuery(query) {
         if (res) return buildCalculationFlex('pension', res);
       }
       if (params.intent === 'retirement' && params.birthDate) {
-        const res = pensionCalcService.calculateRetirementAge(params.birthDate);
+        const res = pensionCalcService.calculateRetirementAge(params.birthDate, { retirementAge: params.retirementAge });
         if (res) return buildCalculationFlex('retirement', res);
       }
       if (params.intent === 'service_years' && params.birthDate) {
@@ -177,7 +177,14 @@ function parseRetirementCalculation(query) {
   }
   if (!dateStr) return null;
 
-  const result = pensionCalcService.calculateRetirementAge(dateStr);
+  // Try to parse custom retirement age if specified in query (e.g., "เกษียณ 55" or "เกษียณอายุ 65")
+  let retirementAge = null;
+  const ageMatch = query.match(/เกษียณ(?:อายุ)?\s*(\d{2})/);
+  if (ageMatch) {
+    retirementAge = parseInt(ageMatch[1], 10);
+  }
+
+  const result = pensionCalcService.calculateRetirementAge(dateStr, { retirementAge });
   if (!result) return null;
   return result; // return object for Flex Message building
 }

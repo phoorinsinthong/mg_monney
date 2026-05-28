@@ -147,14 +147,18 @@ async function extractCalculationParams(question) {
   "finalSalary": ตัวเลขเงินเดือนสุดท้าย (number) หรือ null,
   "yearsOfService": ตัวเลขปีที่ทำงาน (number) หรือ null,
   "birthDate": สตริงวันที่เกิดในรูปแบบ "YYYY-MM-DD" (แปลงปี พ.ศ. เป็น ค.ศ. ให้ถูกต้อง) หรือ null,
-  "scheme": "gpf" (หากระบุว่า กบข.) หรือ "old" (หากเป็นระบบเดิมหรือไม่ระบุ)
+  "scheme": "gpf" (หากระบุว่า กบข.) หรือ "old" (หากเป็นระบบเดิมหรือไม่ระบุ),
+  "retirementAge": ตัวเลขอายุเกษียณหากมีการระบุเฉพาะเจาะจงในคำถาม เช่น 55, 65, 70 (number) หรือ null
 }
 
 ตัวอย่าง 1: "เงินเดือน 40000 ทำงานมา 25 ปี กบข"
--> {"intent": "pension", "finalSalary": 40000, "yearsOfService": 25, "birthDate": null, "scheme": "gpf"}
+-> {"intent": "pension", "finalSalary": 40000, "yearsOfService": 25, "birthDate": null, "scheme": "gpf", "retirementAge": null}
 
 ตัวอย่าง 2: "เกิด 15 พ.ค. 2505 เกษียณเมื่อไหร่"
--> {"intent": "retirement", "finalSalary": null, "yearsOfService": null, "birthDate": "1962-05-15", "scheme": "old"}
+-> {"intent": "retirement", "finalSalary": null, "yearsOfService": null, "birthDate": "1962-05-15", "scheme": "old", "retirementAge": null}
+
+ตัวอย่าง 3: "เกิด 1 ม.ค. 2520 ถ้าจะเกษียณตอนอายุ 55 จะเกษียณปีไหน"
+-> {"intent": "retirement", "finalSalary": null, "yearsOfService": null, "birthDate": "1977-01-01", "scheme": "old", "retirementAge": 55}
 
 ประโยคคำถาม: "${question}"`;
 

@@ -27,6 +27,14 @@ function createApp() {
 
   app.post('/admin/reload-kb', (req, res) => {
     try {
+      // Secure endpoint with a token (can use ADMIN_RELOAD_TOKEN or fall back to LINE_CHANNEL_SECRET)
+      const token = req.headers['x-admin-token'] || req.query.token;
+      const expectedToken = process.env.ADMIN_RELOAD_TOKEN || config.line.channelSecret;
+
+      if (!token || token !== expectedToken) {
+        return res.status(401).json({ status: 'error', message: 'Unauthorized: Invalid or missing token' });
+      }
+
       const { reloadKB } = require('./handlers/messageHandler');
       if (reloadKB) {
         reloadKB();
