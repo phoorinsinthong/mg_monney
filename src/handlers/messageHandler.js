@@ -76,8 +76,8 @@ async function handlePensionQuery(query) {
   // Try knowledge base first
   const kbResult = pensionService.search(query);
   
-  // If good match (score <= 0.5, where 0 is exact match)
-  if (kbResult && kbResult._score !== undefined && kbResult._score <= 0.5) {
+  // If extremely high-confidence match (score <= 0.2, where 0 is exact match)
+  if (kbResult && kbResult._score !== undefined && kbResult._score <= 0.2) {
     return buildPensionFlex(kbResult);
   }
 
