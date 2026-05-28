@@ -198,15 +198,44 @@ function parsePensionCalculation(query) {
   const salaryMatch = query.match(/เงินเดือน[ก-๿\s]*?\s*(\d+(?:,\d{3})*(?:\.\d+)?)/);
   if (salaryMatch) finalSalary = parseFloat(salaryMatch[1].replace(/,/g, ''));
 
-  // "ทำงาน/อายุราชการ N ปี"
-  const yearsMatch = query.match(/(?:ทำงาน|ทำงานมา|ระยะเวลาทำงาน|อายุราชการ)\s*(\d+(?:\.\d+)?)\s*ปี/);
-  if (yearsMatch) yearsOfService = parseFloat(yearsMatch[1]);
-
-  // fallback: bare "N ปี" ถ้าไม่มี pattern ข้างต้น
-  if (yearsOfService === null) {
-    const bareYears = query.match(/(\d+(?:\.\d+)?)\s*ปี/);
-    if (bareYears) yearsOfService = parseFloat(bareYears[1]);
+  // "ทำงาน/อายุราชการ N ปี M เดือน" หรือ "ทำงาน/อายุราชการ N ปี"
+  const yearsMonthsMatch = query.match(/(?:ทำงาน|ทำงานมา|ระยะเวลาทำงาน|อายุราชการ)\s*(\d+)\s*ปี\s*(?:และ)?\s*(\d+)\s*เดือน/);
+  if (yearsMonthsMatch) {
+    const yrs = parseInt(yearsMonthsMatch[1], 10);
+    const mths = parseInt(yearsMonthsMatch[2], 10);
+    yearsOfService = yrs + (mths / 12);
+  } else {
+    const yearsMatch = query.match(/(?:ทำงาน|ทำงานมา|ระยะเวลาทำงาน|อายุราชการ)\s*(\d+(?:\.\d+)?)\s*ปี/);
+    if (yearsMatch) {
+      yearsOfService = parseFloat(yearsMatch[1]);
+    } else {
+      const monthsMatch = query.match(/(?:ทำงาน|ทำงานมา|ระยะเวลาทำงาน|อายุราชการ)\s*(\d+)\s*เดือน/);
+      if (monthsMatch) {
+        yearsOfService = parseInt(monthsMatch[1], 10) / 12;
+      }
+    }
   }
+
+  // fallback: bare "N ปี M เดือน" หรือ "N ปี" หรือ "N เดือน" ถ้าไม่มี pattern ข้างต้น
+  if (yearsOfService === null) {
+    const bareYearsMonths = query.match(/(\d+)\s*ปี\s*(?:และ)?\s*(\d+)\s*เดือน/);
+    if (bareYearsMonths) {
+      const yrs = parseInt(bareYearsMonths[1], 10);
+      const mths = parseInt(bareYearsMonths[2], 10);
+      yearsOfService = yrs + (mths / 12);
+    } else {
+      const bareYears = query.match(/(\d+(?:\.\d+)?)\s*ปี/);
+      if (bareYears) {
+        yearsOfService = parseFloat(bareYears[1]);
+      } else {
+        const bareMonths = query.match(/(\d+)\s*เดือน/);
+        if (bareMonths) {
+          yearsOfService = parseInt(bareMonths[1], 10) / 12;
+        }
+      }
+    }
+  }
+
   if (finalSalary === null || yearsOfService === null) return null;
   const result = pensionCalcService.calculatePension(finalSalary, yearsOfService, { scheme });
   if (!result) return null;
