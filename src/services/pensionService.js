@@ -33,7 +33,7 @@ class PensionService {
         { name: 'topic', weight: 2 },
         { name: 'answer', weight: 1 },
       ],
-      threshold: 0.6,
+      threshold: 0.4,
       includeScore: true,
     });
   }
